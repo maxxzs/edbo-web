@@ -1,0 +1,37 @@
+@import url('https://fonts.cdnfonts.com/css/sf-pro-display');
+
+:root {
+  --el-font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  --el-font-size-base: 14px;
+  --el-color-primary: #409EFF;
+  --el-color-success: #67C23A;
+  --el-color-warning: #E6A23C;
+  --el-color-danger: #F56C6C;
+  --el-color-info: #909399;
+  --el-border-radius-base: 8px;
+  --el-transition-duration: 0.3s;
+}
+
+body {
+  font-family: var(--el-font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color);
+}
+
+/* 暗色模式适配 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --el-color-primary: #409EFF;
+    --el-color-success: #67C23A;
+    --el-color-warning: #E6A23C;
+    --el-color-danger: #F56C6C;
+    --el-color-info: #909399;
+    --el-text-color-primary: rgba(255, 255, 255, 0.87);
+    --el-text-color-regular: rgba(255, 255, 255, 0.67);
+    --el-text-color-secondary: rgba(255, 255, 255, 0.47);
+    --el-bg-color: #1d1d1f;
+    --el-border-color-light: rgba(255, 255, 255, 0.12);
+  }
+}
