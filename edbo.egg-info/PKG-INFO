@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.2
 Name: edbo
 Version: 0.2.0
 Summary: Bayesian reaction optimization as a tool for chemical synthesis.
@@ -23,9 +23,9 @@ Requires-Dist: Jinja2==3.0.3
 Requires-Dist: joypy==0.2.6
 Requires-Dist: lxml==4.6.4
 Requires-Dist: mordred==1.2.0
-Requires-Dist: numpy==1.21.5
+Requires-Dist: numpy==1.22.4
 Requires-Dist: ordered-set==4.0.2
-Requires-Dist: pandas==1.3.4
+Requires-Dist: pandas==2.1.3
 Requires-Dist: pareto==1.1.1.post3
 Requires-Dist: pymoo==0.5.0
 Requires-Dist: scikit-learn==1.0.1
@@ -35,3 +35,17 @@ Requires-Dist: matplotlib
 Requires-Dist: sympy==1.9
 Requires-Dist: torch==1.10.0
 Requires-Dist: tqdm
+Requires-Dist: pydantic==1.8.2
+Requires-Dist: python-dotenv==0.19.0
+Requires-Dist: fastapi==0.104.1
+Requires-Dist: uvicorn==0.24.0
+Requires-Dist: python-multipart==0.0.6
+Requires-Dist: aiofiles==23.2.1
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: requires-dist
+Dynamic: summary

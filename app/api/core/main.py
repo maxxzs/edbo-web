@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, BaseSettings
 from typing import Dict, List, Optional, Union
 import io
 import traceback
@@ -8,14 +8,21 @@ import pandas as pd
 import json
 import tempfile
 import os
+import uvicorn
 from edbo.plus.optimizer import EDBOplus
 from edbo.plus.scope_generator import create_reaction_scope
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 app = FastAPI()
 
+class Settings(BaseSettings):
+    temp_dir: str = "/data/tmp"
+    max_file_size: int = 1024*1024*10  # 10MB
+
+settings = Settings()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,7 +50,7 @@ async def generate_scope(request: ScopeGenerateRequest):
     try:
         print("接收到的请求数据:", request.dict())
         
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory(dir=settings.temp_dir) as temp_dir:
             try:
                 df = create_reaction_scope(
                     components=request.components,
@@ -79,8 +86,15 @@ async def generate_scope(request: ScopeGenerateRequest):
 @app.post("/api/v1/data/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
-        # 保存文件到临时目录
-        with tempfile.TemporaryDirectory() as temp_dir:
+        # 保存文件到临时目录（使用配置的临时目录）
+        with tempfile.TemporaryDirectory(dir=settings.temp_dir) as temp_dir:
+            content = await file.read()
+            # 检查文件大小
+            if len(content) > settings.max_file_size:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"文件大小超过限制 {settings.max_file_size/1024/1024}MB"
+                )
             file_path = os.path.join(temp_dir, file.filename)
             with open(file_path, "wb") as buffer:
                 content = await file.read()
@@ -132,10 +146,10 @@ async def run_optimization(
         print(f"阈值: {objective_thresholds_list}")
         
         for column in df.columns:
-                try:
-                    df[column] = pd.to_numeric(df[column], errors='ignore')
-                except:
-                    continue
+            try:
+                df[column] = pd.to_numeric(df[column], errors='ignore')
+            except:
+                continue
         
         print("数据类型:")
         print(df.dtypes)
@@ -182,7 +196,7 @@ async def run_optimization(
                     add_random_samples=add_random_samples,
                     filename="optimization_data.csv",
                     directory=temp_dir
-            )
+                )
 
                 if isinstance(result_df, pd.DataFrame) and 'priority' in result_df.columns:
                     df['priority'] = result_df['priority'].values
@@ -217,6 +231,15 @@ async def run_optimization(
             detail=f"请求处理失败: {str(e)}"
         )
 
-@app.get("/api/health")
+@app.get("/api/v1/health")
 async def health_check():
     return {"status": "healthy"}
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,  # 生产环境关闭热重载
+        workers=int(os.getenv("UVICORN_WORKERS", 1))
+    )
