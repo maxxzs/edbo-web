@@ -27,22 +27,6 @@
       "dest": "/index.html"
     }
   ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
-        { 
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        }
-      ]
-    }
-  ],
-  "rewrites": [],
   "env": {
     "VITE_API_BASE_URL": "@api_base_url"
   }
