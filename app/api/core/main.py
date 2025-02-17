@@ -14,6 +14,15 @@ from edbo.plus.scope_generator import create_reaction_scope
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 app = FastAPI()
 
+# 配置CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class Settings(BaseSettings):
     temp_dir: str = "/data/tmp"
     max_file_size: int = 1024*1024*10  # 10MB
@@ -22,7 +31,11 @@ settings = Settings()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
+    allow_origins=[
+        "http://localhost:3000",
+        "https://your-static-host.com",  # 替换为静态托管域名
+        "http://8.139.254.79:8000"     # 替换为云服务器IP
+    ] + os.getenv("CORS_ORIGINS", "").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
