@@ -31,7 +31,7 @@ sudo mkdir -p /opt/edbo/{app,static,data}
 sudo chown -R edbo_user:www-data /opt/edbo
 
 # 2. 克隆项目代码
-sudo -u edbo_user git clone https://your-git-repo.com/edbo-web.git /opt/edbo/app
+sudo -u edbo_user git clone https://github.com/maxxzs/edbo-web.git /opt/edbo/app
 
 # 3. 安装Python依赖
 cd /opt/edbo/app/app/api/core
