@@ -1,9 +1,10 @@
 # EDBO 混合部署方案指南
 
 ## 一、架构说明
-- 前端：静态资源托管（Vercel/Netlify/GitHub Pages）
-- 后端：独立云服务器API服务
-- 通信：前端直接通过IP访问后端API
+- 前端：Vercel托管（自动Git触发部署）
+- 后端：云服务器（Ubuntu 22.04 + Uvicorn + PM2）
+- 通信：Nginx反向代理 + HTTPS加密
+- 监控：Prometheus + Grafana监控面板
 
 ## 二、服务器准备（Ubuntu 22.04 LTS）
 ```bash
@@ -93,13 +94,62 @@ sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d your-domain.com
 ```
 
-## 七、验证部署
+## 七、Vercel专项配置
+```json
+// vercel.json
+{
+  "builds": [{
+    "src": "app/web/*",
+    "use": "@vercel/static-build",
+    "config": {
+      "distDir": "dist",
+      "cleanDistDir": true
+    }
+  }],
+  "routes": [
+    {
+      "src": "/.*",
+      "dest": "/index.html"
+    }
+  ]
+}
+```
+
+## 八、验证部署
 ```bash
-# 检查API服务状态
-pm2 list edbo-api
+# API健康检查（带JWT认证）
+curl -X GET http://YOUR_SERVER_IP/api/v1/health \
+-H "Authorization: Bearer $(cat /opt/edbo/secrets/api-token)"
 
-# 测试API接口
-curl -X GET http://localhost:8000/api/v1/health
+# 前端版本验证
+curl -s http://YOUR_VERCEL_DOMAIN/version.txt | xargs echo "Frontend Version:"
 
-# 检查前端访问
-curl -I http://your-server-ip
+# 压力测试（使用wrk）
+wrk -t4 -c100 -d30s http://YOUR_SERVER_IP/api/v1/benchmark
+```
+
+## 九、优化建议
+1. 前端构建优化：
+   - 启用Vite的SSG预渲染
+   - 配置Gzip/Brotli压缩
+   - 添加资源CDN加速
+
+2. 后端服务增强：
+   - 增加Rate Limiting（速率限制）
+   - 实现JWT身份验证
+   - 添加Prometheus监控端点
+
+3. 基础设施改进：
+   - 配置自动化证书更新
+   - 启用数据库连接池
+   - 部署Redis缓存层
+
+4. 安全加固：
+   - 配置WAF规则
+   - 启用IP白名单
+   - 添加请求签名验证
+
+5. 部署流水线：
+   - 添加GitHub Actions自动化部署
+   - 集成SonarQube代码扫描
+   - 配置Slack部署通知
