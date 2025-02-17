@@ -12,10 +12,8 @@
     }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "src": "/assets/(.*)", "headers": { "Cache-Control": "public, max-age=31536000" } },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "env": {
     "VITE_API_BASE_URL": "http://8.139.254.79:8000" 
