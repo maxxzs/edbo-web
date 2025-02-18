@@ -34,7 +34,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://your-static-host.com",  # 替换为静态托管域名
-        "http://8.139.254.79:8000"     # 替换为云服务器IP
+        "http://8.139.254.79:443"     # 替换为云服务器IP
     ] + os.getenv("CORS_ORIGINS", "").split(","),
     allow_credentials=True,
     allow_methods=["*"],
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=443,
         reload=False,  # 生产环境关闭热重载
         workers=int(os.getenv("UVICORN_WORKERS", 1))
     )
