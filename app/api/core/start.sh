@@ -5,7 +5,7 @@ echo "Starting EDBO API with $UVICORN_WORKERS workers"
 
 uvicorn main:app \
 --host 0.0.0.0 \
---port 443 \
+--port 8000 \
 --workers $UVICORN_WORKERS \
 --timeout-keep-alive 30 \
 --no-access-log \
