@@ -10,3 +10,5 @@ uvicorn main:app \
 --timeout-keep-alive 30 \
 --no-access-log \
 --http httptools \
+--proxy-headers \
+--forwarded-allow-ips="*" \

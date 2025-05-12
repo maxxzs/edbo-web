@@ -32,9 +32,8 @@ settings = Settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "https://your-static-host.com",  # 替换为静态托管域名
-        "http://8.139.254.79:8000"     # 替换为云服务器IP
+        "https://xzsbo.xyz",
+        "http://localhost:3000"
     ] + os.getenv("CORS_ORIGINS", "").split(","),
     allow_credentials=True,
     allow_methods=["*"],

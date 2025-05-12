@@ -1,155 +1,235 @@
-# EDBO 混合部署方案指南
+# EDBO 项目阿里云部署指南
 
-## 一、架构说明
-- 前端：Vercel托管（自动Git触发部署）
-- 后端：云服务器（Ubuntu 22.04 + Uvicorn + PM2）
-- 通信：Nginx反向代理 + HTTPS加密
-- 监控：Prometheus + Grafana监控面板
+## 一、服务器准备
+1. 创建ECS实例
+   - 推荐配置：2核4G（突发性能实例t5） 
+   - 系统镜像：Ubuntu 22.04 LTS
+   - 安全组开放端口：22, 80, 443, 8000
 
-## 二、服务器准备（Ubuntu 22.04 LTS）
+2. 系统初始化
 ```bash
-# 1. 系统更新
+# 更新系统
 sudo apt update && sudo apt upgrade -y
 
-# 2. 安装基础依赖
-sudo apt install -y python3-pip python3-venv nginx git unzip ufw
+# 安装基础工具
+sudo apt install -y git nginx python3-pip nodejs npm certbot python3-certbot-nginx
 
-# 3. 配置防火墙
-sudo ufw allow 22/tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw --force enable
-
-# 4. 创建服务账户
-sudo useradd -r -s /bin/false edbo_user
+# 配置Python虚拟环境
+sudo pip3 install virtualenv
 ```
 
-## 三、后端API部署
+## 二、后端服务部署
+1. 克隆项目
 ```bash
-# 1. 创建项目目录
-sudo mkdir -p /opt/edbo/{app,static,data}
-sudo chown -R edbo_user:www-data /opt/edbo
+cd /opt
+sudo git clone https://your-git-repo.com/edbo-web.git
+sudo chown -R ubuntu:ubuntu edbo-web
+```
 
-# 2. 克隆项目代码
-sudo -u edbo_user git clone https://github.com/maxxzs/edbo-web.git /opt/edbo/app
+2. 配置环境变量
+复制 `.env.production` 文件到项目目录：
+```bash
+cp edbo-web/app/api/core/.env.production edbo-web/app/api/core/.env
+```
 
-# 3. 安装Python依赖
-cd /opt/edbo/app/app/api/core
-sudo -u edbo_user python3 -m venv .venv
-source .venv/bin/activate
+3. 安装依赖
+```bash
+cd edbo-web/app/api/core
+virtualenv venv
+source venv/bin/activate
 pip install -r requirements.txt
-
-# 4. 配置环境变量
-echo "CORS_ORIGINS=*
-UVICORN_WORKERS=4
-RELOAD=false
-HOST=0.0.0.0
-PORT=8000" > .env
-
-# 5. 启动服务（PM2守护进程）
-sudo npm install -g pm2
-pm2 start start.sh --name edbo-api
-pm2 save
-pm2 startup
 ```
 
-## 四、前端部署
+4. 配置系统服务
+创建`/etc/systemd/system/edbo-api.service`：
+```ini
+[Unit]
+Description=EDBO API Service
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/edbo-web/app/api/core
+Environment="PATH=/opt/edbo-web/app/api/core/venv/bin"
+ExecStart=/opt/edbo-web/app/api/core/venv/bin/uvicorn main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers $(( $(nproc) * 2 + 1 )) \
+    --timeout-keep-alive 30 \
+    --no-access-log \
+    --http httptools
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启动服务：
 ```bash
-# 1. 进入前端目录
-cd /opt/edbo/app/app/web
-
-# 2. 安装依赖
-npm install
-
-# 3. 构建生产包（替换your-server-ip为实际IP）
-VITE_API_BASE_URL=http://YOUR_SERVER_IP:8000 npm run build
-
-# 4. 部署dist目录到静态托管平台
-# （具体步骤根据托管平台文档操作）
+sudo systemctl daemon-reload
+sudo systemctl start edbo-api
+sudo systemctl enable edbo-api
 ```
 
-## 五、Nginx反向代理配置
+## 三、前端部署
+1. 安装依赖
+```bash
+cd /opt/edbo-web/app/web
+npm install
+npm run build
+```
+
+2. 配置环境变量
+复制 `.env.production` 文件到项目目录：
+```bash
+cp edbo-web/app/web/.env.production edbo-web/app/web/.env
+```
+
+3. 配置Nginx
+创建`/etc/nginx/sites-available/edbo-web`：
 ```nginx
 server {
     listen 80;
-    server_name YOUR_SERVER_IP;
+    server_name xzsbo.xyz www.xzsbo.xyz;
+
+    location / {
+        root /opt/edbo-web/app/web/dist;
+        try_files $uri $uri/ /index.html;
+    }
 
     location /api {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
-    location / {
-        root /opt/edbo/app/app/web/dist;
-        try_files $uri $uri/ /index.html;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-## 六、HTTPS配置（可选）
+启用配置：
 ```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+sudo ln -s /etc/nginx/sites-available/edbo-web /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-## 七、Vercel专项配置
-```json
-// vercel.json
-{
-  "builds": [{
-    "src": "app/web/*",
-    "use": "@vercel/static-build",
-    "config": {
-      "distDir": "dist",
-      "cleanDistDir": true
-    }
-  }],
-  "routes": [
-    {
-      "src": "/.*",
-      "dest": "/index.html"
-    }
-  ]
+3. 配置SSL证书
+```bash
+sudo certbot --nginx -d xzsbo.xyz -d www.xzsbo.xyz
+```
+
+## 四、验证部署
+1. 服务状态检查
+```bash
+systemctl status edbo-api  # 后端服务
+certbot certificates        # SSL证书
+nginx -t                    # Nginx配置
+```
+
+2. 访问测试
+```bash
+curl -I https://xzsbo.xyz
+curl -I https://xzsbo.xyz/api/health-check
+```
+
+## 五、运维监控
+1. 日志查看
+```bash
+journalctl -u edbo-api -f  # 后端日志
+tail -f /var/log/nginx/access.log  # 访问日志
+tail -f /var/log/nginx/error.log   # 错误日志
+```
+
+2. 进程守护
+```bash
+# 设置每日日志轮转
+sudo nano /etc/logrotate.d/edbo-api
+```
+在 `/etc/logrotate.d/edbo-api` 中添加以下内容：
+```ini
+/opt/edbo-web/app/api/core/logs/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 ubuntu ubuntu
 }
 ```
 
-## 八、验证部署
+3. 资源监控
+建议安装：
+- Prometheus + Grafana 监控系统资源
+- Uptime Kuma 服务状态监控
+
+## 六、备份策略
+1. 数据库备份（如果使用数据库）
 ```bash
-# API健康检查（带JWT认证）
-curl -X GET http://YOUR_SERVER_IP/api/v1/health \
--H "Authorization: Bearer $(cat /opt/edbo/secrets/api-token)"
-
-# 前端版本验证
-curl -s http://YOUR_VERCEL_DOMAIN/version.txt | xargs echo "Frontend Version:"
-
-# 压力测试（使用wrk）
-wrk -t4 -c100 -d30s http://YOUR_SERVER_IP/api/v1/benchmark
+# 使用cron作业定期备份数据库
+sudo crontab -e
+```
+在crontab中添加以下行以每天凌晨2点备份数据库：
+```bash
+0 2 * * * /usr/bin/pg_dump -U dbuser dbname > /opt/edbo-web/backups/db_backup_$(date +\%Y-\%m-\%d).sql
 ```
 
-## 九、优化建议
-1. 前端构建优化：
-   - 启用Vite的SSG预渲染
-   - 配置Gzip/Brotli压缩
-   - 添加资源CDN加速
+2. 代码备份
+```bash
+# 使用cron作业定期备份代码
+sudo crontab -e
+```
+在crontab中添加以下行以每周日凌晨3点备份代码：
+```bash
+0 3 * * 0 tar -czvf /opt/edbo-web/backups/code_backup_$(date +\%Y-\%m-\%d).tar.gz /opt/edbo-web
+```
 
-2. 后端服务增强：
-   - 增加Rate Limiting（速率限制）
-   - 实现JWT身份验证
-   - 添加Prometheus监控端点
+## 七、安全加固建议
+1. 更新系统和软件
+```bash
+sudo apt update && sudo apt upgrade -y
+```
 
-3. 基础设施改进：
-   - 配置自动化证书更新
-   - 启用数据库连接池
-   - 部署Redis缓存层
+2. 配置防火墙
+```bash
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 8000/tcp
+sudo ufw enable
+```
 
-4. 安全加固：
-   - 配置WAF规则
-   - 启用IP白名单
-   - 添加请求签名验证
+3. 使用强密码和SSH密钥
+确保使用强密码和SSH密钥进行服务器访问。
 
-5. 部署流水线：
-   - 添加GitHub Actions自动化部署
-   - 集成SonarQube代码扫描
-   - 配置Slack部署通知
+4. 定期检查日志
+```bash
+sudo journalctl -xe
+sudo tail -f /var/log/auth.log
+```
+
+## 八、故障排查和日志管理
+1. 检查服务状态
+```bash
+systemctl status edbo-api
+sudo nginx -t
+```
+
+2. 查看日志
+```bash
+journalctl -u edbo-api -f
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
+```
+
+3. 使用日志分析工具
+可以使用ELK Stack（Elasticsearch, Logstash, Kibana）进行日志分析。
+
+## 九、更新策略
+1. 代码更新流程
+```bash
+cd /opt/edbo-web
+git pull origin main
+# 重新部署前端
+cd app/web && npm run build
+# 重启后端
+sudo systemctl restart edbo-api
