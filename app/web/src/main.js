@@ -11,7 +11,7 @@ const app = createApp(App)
 
 // 配置axios基础路径
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://8.139.254.79:443',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://xzsbo.xyz/api',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -22,7 +22,7 @@ app.config.globalProperties.$api = apiClient
 // 配置API基础地址
 import axios from 'axios'
 // 生产环境配置
-axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || 'https://8.139.254.79:443' // 请替换为实际云服务器IP
+axios.defaults.baseURL = import.meta.env.VITE_API_BASE_URL || 'https://xzsbo.xyz/api'
 axios.defaults.timeout = 30000
 
 // 添加响应拦截器

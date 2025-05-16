@@ -32,8 +32,7 @@ settings = Settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://xzsbo.xyz",
-        "http://localhost:3000"
+        "https://xzsbo.xyz"
     ] + os.getenv("CORS_ORIGINS", "").split(","),
     allow_credentials=True,
     allow_methods=["*"],
@@ -252,6 +251,10 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
+        ssl_keyfile="/etc/letsencrypt/live/xzsbo.xyz/privkey.pem",
+        ssl_certfile="/etc/letsencrypt/live/xzsbo.xyz/fullchain.pem",
+        proxy_headers=True,
+        forwarded_allow_ips="*",
         reload=False,  # 生产环境关闭热重载
         workers=int(os.getenv("UVICORN_WORKERS", 1))
     )
